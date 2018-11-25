@@ -26,11 +26,14 @@ import android.widget.TextView;
  * Email: chjie.jaeger@gmail.com
  * GitHub: https://github.com/laobie
  */
-public class SelectableTextHelper {
 
+public class SelectableTextHelper {
+    private static int COLOR_SELECTED = 0xFFAFE1F4;
+    private static int COLOR_HANDLE = 0xFF1379D6;
     private final static int DEFAULT_SELECTION_LENGTH = 1;
     private static final int DEFAULT_SHOW_DURATION = 100;
 
+    private static SelectableTextHelper waitingHelper;
     private CursorHandle mStartHandle;
     private CursorHandle mEndHandle;
     private OperateWindow mOperateWindow;
@@ -49,30 +52,83 @@ public class SelectableTextHelper {
     private int mCursorHandleSize;
     private BackgroundColorSpan mSpan;
     private boolean isHideWhenScroll;
-    private boolean isHide = true;
+    private boolean isCurrentHide = true;
 
     private ViewTreeObserver.OnPreDrawListener mOnPreDrawListener;
     ViewTreeObserver.OnScrollChangedListener mOnScrollChangedListener;
 
-    public SelectableTextHelper(Builder builder) {
+    public static void setTextSelectable(TextView textView) {
+        SelectableTextHelper selectableTextHelper = new SelectableTextHelper.Builder(textView)
+                .setSelectedColor(COLOR_SELECTED)
+                .setCursorHandleSizeInDp(20)
+                .setCursorHandleColor(COLOR_HANDLE)
+                .build(true);
+
+        selectableTextHelper.setSelectListener(new OnSelectListener() {
+            @Override
+            public void onTextSelected(CharSequence content) {
+
+            }
+        });
+    }
+
+    public static void setWaitingHelper(TextView textView) {
+        if (waitingHelper != null) {
+            waitingHelper.destroy();
+        }
+        waitingHelper = new SelectableTextHelper.Builder(textView)
+                .setSelectedColor(COLOR_SELECTED)
+                .setCursorHandleSizeInDp(20)
+                .setCursorHandleColor(COLOR_HANDLE)
+                .build(false);
+
+        waitingHelper.setSelectListener(new OnSelectListener() {
+            @Override
+            public void onTextSelected(CharSequence content) {
+
+            }
+        });
+    }
+
+    public static void showWaitingTextSelector(boolean allSelected) {
+        if (waitingHelper == null) {
+            return;
+        }
+        if (allSelected) {
+            waitingHelper.showAllTextSelected();
+        } else {
+            waitingHelper.showSelectView(waitingHelper.mTouchX, waitingHelper.mTouchY);
+        }
+    }
+
+    public static void hideShowingTextSelector() {
+        if (waitingHelper == null || waitingHelper.isCurrentHide) {
+            return;
+        }
+        waitingHelper.hideSelectView();
+        waitingHelper.resetSelectionInfo();
+    }
+
+    private SelectableTextHelper(Builder builder, boolean showImmediately) {
         mTextView = builder.mTextView;
-        mContext = mTextView.getContext();
+        mContext = mTextView.getContext().getApplicationContext();
         mSelectedColor = builder.mSelectedColor;
         mCursorHandleColor = builder.mCursorHandleColor;
         mCursorHandleSize = TextLayoutUtil.dp2px(mContext, builder.mCursorHandleSizeInDp);
-        init();
+        init(showImmediately);
     }
 
-    private void init() {
+    private void init(boolean showImmediately) {
         mTextView.setText(mTextView.getText(), TextView.BufferType.SPANNABLE);
-        mTextView.setOnLongClickListener(new View.OnLongClickListener() {
-            @Override
-            public boolean onLongClick(View v) {
-                showSelectView(mTouchX, mTouchY);
-                return true;
-            }
-        });
-
+        if (showImmediately) {
+            mTextView.setOnLongClickListener(new View.OnLongClickListener() {
+                @Override
+                public boolean onLongClick(View v) {
+                    showSelectView(mTouchX, mTouchY);
+                    return true;
+                }
+            });
+        }
         mTextView.setOnTouchListener(new View.OnTouchListener() {
             @Override
             public boolean onTouch(View v, MotionEvent event) {
@@ -81,22 +137,18 @@ public class SelectableTextHelper {
                 return false;
             }
         });
-
-        mTextView.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                resetSelectionInfo();
-                hideSelectView();
-            }
-        });
         mTextView.addOnAttachStateChangeListener(new View.OnAttachStateChangeListener() {
             @Override
             public void onViewAttachedToWindow(View v) {
-
+                mContext = mTextView.getContext().getApplicationContext();
             }
 
             @Override
             public void onViewDetachedFromWindow(View v) {
+                if (waitingHelper != null && waitingHelper.mTextView == mTextView) {
+                    waitingHelper.mContext = null;
+                    waitingHelper = null;
+                }
                 destroy();
             }
         });
@@ -116,7 +168,7 @@ public class SelectableTextHelper {
         mOnScrollChangedListener = new ViewTreeObserver.OnScrollChangedListener() {
             @Override
             public void onScrollChanged() {
-                if (!isHideWhenScroll && !isHide) {
+                if (!isHideWhenScroll && !isCurrentHide) {
                     isHideWhenScroll = true;
                     if (mOperateWindow != null) {
                         mOperateWindow.dismiss();
@@ -147,7 +199,7 @@ public class SelectableTextHelper {
     private final Runnable mShowSelectViewRunnable = new Runnable() {
         @Override
         public void run() {
-            if (isHide) return;
+            if (isCurrentHide) return;
             if (mOperateWindow != null) {
                 mOperateWindow.show();
             }
@@ -161,7 +213,7 @@ public class SelectableTextHelper {
     };
 
     private void hideSelectView() {
-        isHide = true;
+        isCurrentHide = true;
         if (mStartHandle != null) {
             mStartHandle.dismiss();
         }
@@ -182,11 +234,14 @@ public class SelectableTextHelper {
     }
 
     private void showSelectView(int x, int y) {
+        if (waitingHelper != null) {
+            waitingHelper.destroy();
+        }
         hideSelectView();
         resetSelectionInfo();
-        isHide = false;
         if (mStartHandle == null) mStartHandle = new CursorHandle(true);
         if (mEndHandle == null) mEndHandle = new CursorHandle(false);
+        if (mOperateWindow == null) mOperateWindow = new OperateWindow(mContext);
 
         int startOffset = TextLayoutUtil.getPreciseOffset(mTextView, x, y);
         int endOffset = startOffset + DEFAULT_SELECTION_LENGTH;
@@ -197,6 +252,24 @@ public class SelectableTextHelper {
             return;
         }
         selectText(startOffset, endOffset);
+        showCursorHandle(mStartHandle);
+        showCursorHandle(mEndHandle);
+        mOperateWindow.show();
+
+        isCurrentHide = false;
+        waitingHelper = this;
+    }
+
+    private void showAllTextSelected() {
+        hideSelectView();
+        isCurrentHide = false;
+        if (mStartHandle == null) mStartHandle = new CursorHandle(true);
+        if (mEndHandle == null) mEndHandle = new CursorHandle(false);
+        if (mOperateWindow == null) mOperateWindow = new OperateWindow(mContext);
+        if (mSpannable == null) {
+            mSpannable = (Spannable) mTextView.getText();
+        }
+        selectText(0, mTextView.getText().length());
         showCursorHandle(mStartHandle);
         showCursorHandle(mEndHandle);
         mOperateWindow.show();
@@ -225,6 +298,10 @@ public class SelectableTextHelper {
             if (mSpan == null) {
                 mSpan = new BackgroundColorSpan(mSelectedColor);
             }
+
+            if (mSelectionInfo.mEnd > mSpannable.length()) {
+                mSelectionInfo.mEnd = mSpannable.length();
+            }
             mSelectionInfo.mSelectionContent = mSpannable.subSequence(mSelectionInfo.mStart, mSelectionInfo.mEnd).toString();
             mSpannable.setSpan(mSpan, mSelectionInfo.mStart, mSelectionInfo.mEnd, Spanned.SPAN_INCLUSIVE_EXCLUSIVE);
             if (mSelectListener != null) {
@@ -237,9 +314,7 @@ public class SelectableTextHelper {
         mSelectListener = selectListener;
     }
 
-    public void destroy() {
-        mTextView.getViewTreeObserver().removeOnScrollChangedListener(mOnScrollChangedListener);
-        mTextView.getViewTreeObserver().removeOnPreDrawListener(mOnPreDrawListener);
+    private void destroy() {
         resetSelectionInfo();
         hideSelectView();
         mStartHandle = null;
@@ -261,11 +336,11 @@ public class SelectableTextHelper {
         public OperateWindow(final Context context) {
             View contentView = LayoutInflater.from(context).inflate(R.layout.layout_operate_windows, null);
             contentView.measure(View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED),
-                View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED));
+                    View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED));
             mWidth = contentView.getMeasuredWidth();
             mHeight = contentView.getMeasuredHeight();
             mWindow =
-                new PopupWindow(contentView, ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT, false);
+                    new PopupWindow(contentView, ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT, false);
             mWindow.setClippingEnabled(false);
 
             contentView.findViewById(R.id.tv_copy).setOnClickListener(new View.OnClickListener() {
@@ -273,7 +348,7 @@ public class SelectableTextHelper {
                 public void onClick(View v) {
                     ClipboardManager clip = (ClipboardManager) mContext.getSystemService(Context.CLIPBOARD_SERVICE);
                     clip.setPrimaryClip(
-                        ClipData.newPlainText(mSelectionInfo.mSelectionContent, mSelectionInfo.mSelectionContent));
+                            ClipData.newPlainText(mSelectionInfo.mSelectionContent, mSelectionInfo.mSelectionContent));
                     if (mSelectListener != null) {
                         mSelectListener.onTextSelected(mSelectionInfo.mSelectionContent);
                     }
@@ -284,17 +359,13 @@ public class SelectableTextHelper {
             contentView.findViewById(R.id.tv_select_all).setOnClickListener(new View.OnClickListener() {
                 @Override
                 public void onClick(View v) {
-                    hideSelectView();
-                    selectText(0, mTextView.getText().length());
-                    isHide = false;
-                    showCursorHandle(mStartHandle);
-                    showCursorHandle(mEndHandle);
-                    mOperateWindow.show();
+                    showAllTextSelected();
                 }
             });
         }
 
-        public void show() {
+
+        void show() {
             mTextView.getLocationInWindow(mTempCoors);
             Layout layout = mTextView.getLayout();
             int posX = (int) layout.getPrimaryHorizontal(mSelectionInfo.mStart) + mTempCoors[0];
@@ -376,7 +447,8 @@ public class SelectableTextHelper {
                     mOperateWindow.dismiss();
                     int rawX = (int) event.getRawX();
                     int rawY = (int) event.getRawY();
-                    update(rawX + mAdjustX - mWidth, rawY + mAdjustY - mHeight);
+//                    update(rawX + mAdjustX - mWidth, rawY + mAdjustY - mHeight);
+                    update(rawX - mWidth, rawY - mHeight);
                     break;
             }
             return true;
@@ -441,10 +513,10 @@ public class SelectableTextHelper {
             Layout layout = mTextView.getLayout();
             if (isLeft) {
                 mPopupWindow.update((int) layout.getPrimaryHorizontal(mSelectionInfo.mStart) - mWidth + getExtraX(),
-                    layout.getLineBottom(layout.getLineForOffset(mSelectionInfo.mStart)) + getExtraY(), -1, -1);
+                        layout.getLineBottom(layout.getLineForOffset(mSelectionInfo.mStart)) + getExtraY(), -1, -1);
             } else {
                 mPopupWindow.update((int) layout.getPrimaryHorizontal(mSelectionInfo.mEnd) + getExtraX(),
-                    layout.getLineBottom(layout.getLineForOffset(mSelectionInfo.mEnd)) + getExtraY(), -1, -1);
+                        layout.getLineBottom(layout.getLineForOffset(mSelectionInfo.mEnd)) + getExtraY(), -1, -1);
             }
         }
 
@@ -473,8 +545,8 @@ public class SelectableTextHelper {
 
     public static class Builder {
         private TextView mTextView;
-        private int mCursorHandleColor = 0xFF1379D6;
-        private int mSelectedColor = 0xFFAFE1F4;
+        private int mCursorHandleColor = COLOR_HANDLE;
+        private int mSelectedColor = COLOR_SELECTED;
         private float mCursorHandleSizeInDp = 24;
 
         public Builder(TextView textView) {
@@ -496,8 +568,8 @@ public class SelectableTextHelper {
             return this;
         }
 
-        public SelectableTextHelper build() {
-            return new SelectableTextHelper(this);
+        public SelectableTextHelper build(boolean showImmediately) {
+            return new SelectableTextHelper(this, showImmediately);
         }
     }
 }

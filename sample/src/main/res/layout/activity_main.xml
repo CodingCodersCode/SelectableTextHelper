@@ -11,19 +11,43 @@
         android:layout_height="match_parent">
 
         <LinearLayout
+            android:id="@+id/ll_content"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical">
 
             <TextView
-                android:id="@+id/tv_test"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_margin="16dp"
-                android:lineSpacingExtra="3dp"
-                android:text="@string/long_text"
-                android:textSize="16sp"/>
+                android:id="@+id/tv_test_1"
+                style="@style/TextView_Normal_Style"
+                android:text="@string/long_text_1"
+                android:textColor="@color/text_gray"/>
 
+            <TextView
+                android:id="@+id/tv_test_2"
+                style="@style/TextView_Normal_Style"
+                android:text="@string/long_text_2"
+                android:textColor="@color/text_dark"/>
+            <TextView
+                android:id="@+id/tv_test_3"
+                style="@style/TextView_Normal_Style"
+                android:text="@string/long_text_3"
+                android:textColor="@color/text_gray"/>
+            <TextView
+                android:id="@+id/tv_test_4"
+                style="@style/TextView_Normal_Style"
+                android:text="@string/long_text_4"
+                android:textColor="@color/text_dark"/>
+
+            <TextView
+                android:id="@+id/tv_test_5"
+                style="@style/TextView_Normal_Style"
+                android:text="@string/long_text_5"
+                android:textColor="@color/text_gray"/>
+            <TextView
+                android:id="@+id/tv_test_6"
+                style="@style/TextView_Normal_Style"
+                android:text="@string/long_text_6"
+                android:textColor="@color/text_dark"/>
         </LinearLayout>
 
     </ScrollView>
