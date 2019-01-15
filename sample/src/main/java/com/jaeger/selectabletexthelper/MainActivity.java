@@ -8,6 +8,8 @@ import android.support.v7.app.AppCompatActivity;
 import android.view.View;
 import android.widget.LinearLayout;
 import android.widget.TextView;
+import android.widget.Toast;
+
 import com.jaeger.library.OnSelectListener;
 import com.jaeger.library.SelectableTextHelper;
 
@@ -20,6 +22,9 @@ public class MainActivity extends AppCompatActivity {
     private TextView mTvTest_4;
     private TextView mTvTest_5;
     private TextView mTvTest_6;
+
+    private TextView tv_price_type;
+    private TextView tv_price_type_1;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -36,6 +41,8 @@ public class MainActivity extends AppCompatActivity {
         mTvTest_4 = (TextView) findViewById(R.id.tv_test_4);
         mTvTest_5 = (TextView) findViewById(R.id.tv_test_5);
         mTvTest_6 = (TextView) findViewById(R.id.tv_test_6);
+        tv_price_type = (TextView) findViewById(R.id.tv_price_type);
+        tv_price_type_1 = (TextView) findViewById(R.id.tv_price_type_1);
 
         // 点击取消显示
         setClick(mTvTest_1);
@@ -44,6 +51,12 @@ public class MainActivity extends AppCompatActivity {
         setClick(mTvTest_4);
         setClick(mTvTest_5);
         setClick(mTvTest_6);
+
+        setClick(tv_price_type);
+        setClick(tv_price_type_1);
+
+        SelectableTextHelper.setTextSelectable(tv_price_type);
+        SelectableTextHelper.setTextSelectable(tv_price_type_1);
 
         // 长按文本立即弹出选择复制框
         SelectableTextHelper.setTextSelectable(mTvTest_1);
@@ -59,6 +72,9 @@ public class MainActivity extends AppCompatActivity {
         textView.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
+
+                Toast.makeText(MainActivity.this, "toast toast", Toast.LENGTH_SHORT).show();
+
                 SelectableTextHelper.hideShowingTextSelector();
             }
         });

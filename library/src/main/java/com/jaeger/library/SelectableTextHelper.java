@@ -11,6 +11,7 @@ import android.text.Layout;
 import android.text.Spannable;
 import android.text.Spanned;
 import android.text.style.BackgroundColorSpan;
+import android.util.Log;
 import android.view.Gravity;
 import android.view.LayoutInflater;
 import android.view.MotionEvent;
@@ -22,14 +23,14 @@ import android.widget.TextView;
 
 /**
  * Created by Jaeger on 16/8/30.
- *
+ * <p>
  * Email: chjie.jaeger@gmail.com
  * GitHub: https://github.com/laobie
  */
 
 public class SelectableTextHelper {
-    private static int COLOR_SELECTED = 0xFFAFE1F4;
-    private static int COLOR_HANDLE = 0xFF1379D6;
+    private static int COLOR_SELECTED = 0x404086F8;
+    private static int COLOR_HANDLE = 0xFF4086F8;
     private final static int DEFAULT_SELECTION_LENGTH = 1;
     private static final int DEFAULT_SHOW_DURATION = 100;
 
@@ -427,17 +428,34 @@ public class SelectableTextHelper {
         private int mAdjustX;
         private int mAdjustY;
 
+        private int mAdjustRawX;
+        private int mAdjustRawY;
+
+        private int mCurMotionX;
+        private int mCurMotionY;
+
+        private int mCurMotionRawX;
+        private int mCurMotionRawY;
+
         private int mBeforeDragStart;
         private int mBeforeDragEnd;
+
+        private int[] mTempCoors = new int[2];
 
         @Override
         public boolean onTouchEvent(MotionEvent event) {
             switch (event.getAction()) {
                 case MotionEvent.ACTION_DOWN:
+
                     mBeforeDragStart = mSelectionInfo.mStart;
                     mBeforeDragEnd = mSelectionInfo.mEnd;
+
                     mAdjustX = (int) event.getX();
                     mAdjustY = (int) event.getY();
+
+                    mAdjustRawX = (int) event.getRawX();
+                    mAdjustRawY = (int) event.getRawY();
+
                     break;
                 case MotionEvent.ACTION_UP:
                 case MotionEvent.ACTION_CANCEL:
@@ -445,28 +463,24 @@ public class SelectableTextHelper {
                     break;
                 case MotionEvent.ACTION_MOVE:
                     mOperateWindow.dismiss();
-                    int rawX = (int) event.getRawX();
-                    int rawY = (int) event.getRawY();
-//                    update(rawX + mAdjustX - mWidth, rawY + mAdjustY - mHeight);
-                    update(rawX - mWidth, rawY - mHeight);
+
+                    this.mCurMotionX = (int) event.getX();
+                    this.mCurMotionY = (int) event.getY();
+
+                    this.mCurMotionRawX = (int) event.getRawX();
+                    this.mCurMotionRawY = (int) event.getRawY();
+
+                    update(this.mCurMotionX, this.mCurMotionY, this.mCurMotionRawX, this.mCurMotionRawY);
+
                     break;
             }
             return true;
         }
 
-        private void changeDirection() {
-            isLeft = !isLeft;
-            invalidate();
-        }
+        private void update(int curX, int curY, int curRawX, int curRawY) {
+            //获得TextView在屏幕上的位置
+            mTextView.getLocationOnScreen(mTempCoors);
 
-        public void dismiss() {
-            mPopupWindow.dismiss();
-        }
-
-        private int[] mTempCoors = new int[2];
-
-        public void update(int x, int y) {
-            mTextView.getLocationInWindow(mTempCoors);
             int oldOffset;
             if (isLeft) {
                 oldOffset = mSelectionInfo.mStart;
@@ -474,12 +488,14 @@ public class SelectableTextHelper {
                 oldOffset = mSelectionInfo.mEnd;
             }
 
-            y -= mTempCoors[1];
+            curX = (int) (curRawX - mTempCoors[0]);
+            curY = (int) (curRawY - mTempCoors[1]);
 
-            int offset = TextLayoutUtil.getHysteresisOffset(mTextView, x, y, oldOffset);
+            int offset = TextLayoutUtil.getHysteresisOffset(mTextView, curX, curY, oldOffset);
 
             if (offset != oldOffset) {
                 resetSelectionInfo();
+
                 if (isLeft) {
                     if (offset > mBeforeDragEnd) {
                         CursorHandle handle = getCursorHandle(false);
@@ -505,34 +521,56 @@ public class SelectableTextHelper {
                     }
                     updateCursorHandle();
                 }
+
             }
         }
 
         private void updateCursorHandle() {
-            mTextView.getLocationInWindow(mTempCoors);
+            mTextView.getLocationOnScreen(mTempCoors);
+
             Layout layout = mTextView.getLayout();
+
             if (isLeft) {
-                mPopupWindow.update((int) layout.getPrimaryHorizontal(mSelectionInfo.mStart) - mWidth + getExtraX(),
-                        layout.getLineBottom(layout.getLineForOffset(mSelectionInfo.mStart)) + getExtraY(), -1, -1);
+                mPopupWindow.update(
+                        (int) layout.getPrimaryHorizontal(mSelectionInfo.mStart) + getExtraX() - mWidth - mPadding,
+                        layout.getLineBottom(layout.getLineForOffset(mSelectionInfo.mStart)) + getExtraY(),
+                        -1,
+                        -1);
             } else {
-                mPopupWindow.update((int) layout.getPrimaryHorizontal(mSelectionInfo.mEnd) + getExtraX(),
-                        layout.getLineBottom(layout.getLineForOffset(mSelectionInfo.mEnd)) + getExtraY(), -1, -1);
+                mPopupWindow.update(
+                        (int) layout.getPrimaryHorizontal(mSelectionInfo.mEnd) + getExtraX() - mPadding,
+                        layout.getLineBottom(layout.getLineForOffset(mSelectionInfo.mEnd)) + getExtraY(),
+                        -1,
+                        -1);
             }
         }
 
         public void show(int x, int y) {
-            mTextView.getLocationInWindow(mTempCoors);
+            mTextView.getLocationOnScreen(mTempCoors);
             int offset = isLeft ? mWidth : 0;
-            mPopupWindow.showAtLocation(mTextView, Gravity.NO_GRAVITY, x - offset + getExtraX(), y + getExtraY());
+            mPopupWindow.showAtLocation(mTextView, Gravity.NO_GRAVITY, x + getExtraX() - offset - mPadding, y + getExtraY());
         }
 
         public int getExtraX() {
-            return mTempCoors[0] - mPadding + mTextView.getPaddingLeft();
+            return mTempCoors[0];
         }
 
         public int getExtraY() {
-            return mTempCoors[1] + mTextView.getPaddingTop();
+            return mTempCoors[1];
         }
+
+        private void changeDirection() {
+            isLeft = !isLeft;
+            invalidate();
+        }
+
+        public void dismiss() {
+            mPopupWindow.dismiss();
+        }
+    }
+
+    private void printLog(String msg) {
+        Log.e(getClass().getCanonicalName(), msg);
     }
 
     private CursorHandle getCursorHandle(boolean isLeft) {
