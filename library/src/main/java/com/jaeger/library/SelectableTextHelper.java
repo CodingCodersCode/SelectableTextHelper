@@ -279,7 +279,7 @@ public class SelectableTextHelper {
     private void showCursorHandle(CursorHandle cursorHandle) {
         Layout layout = mTextView.getLayout();
         int offset = cursorHandle.isLeft ? mSelectionInfo.mStart : mSelectionInfo.mEnd;
-        cursorHandle.show((int) layout.getPrimaryHorizontal(offset), layout.getLineBottom(layout.getLineForOffset(offset)));
+        cursorHandle.show((int) layout.getPrimaryHorizontal(offset) - (int) layout.getPrimaryHorizontal(layout.getLineStart(layout.getLineForOffset(offset))), layout.getLineBottom(layout.getLineForOffset(offset)));
     }
 
     private void selectText(int startPos, int endPos) {
@@ -367,9 +367,25 @@ public class SelectableTextHelper {
 
 
         void show() {
-            mTextView.getLocationInWindow(mTempCoors);
+            /*mTextView.getLocationInWindow(mTempCoors);
             Layout layout = mTextView.getLayout();
             int posX = (int) layout.getPrimaryHorizontal(mSelectionInfo.mStart) + mTempCoors[0];
+            int posY = layout.getLineTop(layout.getLineForOffset(mSelectionInfo.mStart)) + mTempCoors[1] - mHeight - 16;
+            if (posX <= 0) posX = 16;
+            if (posY < 0) posY = 16;
+            if (posX + mWidth > TextLayoutUtil.getScreenWidth(mContext)) {
+                posX = TextLayoutUtil.getScreenWidth(mContext) - mWidth - 16;
+            }
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                mWindow.setElevation(8f);
+            }
+            mWindow.showAtLocation(mTextView, Gravity.NO_GRAVITY, posX, posY);*/
+
+            //(int) layout.getPrimaryHorizontal(offset) - (int) layout.getPrimaryHorizontal(layout.getLineStart(layout.getLineForOffset(offset)))
+
+            mTextView.getLocationOnScreen(mTempCoors);
+            Layout layout = mTextView.getLayout();
+            int posX = (int) layout.getPrimaryHorizontal(mSelectionInfo.mStart) - (int) layout.getPrimaryHorizontal(layout.getLineStart(layout.getLineForOffset(mSelectionInfo.mStart))) + mTempCoors[0];
             int posY = layout.getLineTop(layout.getLineForOffset(mSelectionInfo.mStart)) + mTempCoors[1] - mHeight - 16;
             if (posX <= 0) posX = 16;
             if (posY < 0) posY = 16;
@@ -489,7 +505,8 @@ public class SelectableTextHelper {
             }
 
             curX = (int) (curRawX - mTempCoors[0]);
-            curY = (int) (curRawY - mTempCoors[1]);
+            //curY = (int) (curRawY - curY - mTempCoors[1] - mTextView.getPaddingBottom() - (mTextView.getLayout().getHeight() * 0.5));
+            curY = curRawY - mTempCoors[1];
 
             int offset = TextLayoutUtil.getHysteresisOffset(mTextView, curX, curY, oldOffset);
 
@@ -530,16 +547,22 @@ public class SelectableTextHelper {
 
             Layout layout = mTextView.getLayout();
 
+            int targetX;
+            int targetY;
+            //cursorHandle.show((int) layout.getPrimaryHorizontal(offset) - (int) layout.getPrimaryHorizontal(layout.getLineStart(layout.getLineForOffset(offset))), layout.getLineBottom(layout.getLineForOffset(offset)));
+
             if (isLeft) {
+                targetX = (int) layout.getPrimaryHorizontal(mSelectionInfo.mStart) - (int) layout.getPrimaryHorizontal(layout.getLineStart(layout.getLineForOffset(mSelectionInfo.mStart))) + getExtraX() - mWidth - mPadding;
                 mPopupWindow.update(
-                        (int) layout.getPrimaryHorizontal(mSelectionInfo.mStart) + getExtraX() - mWidth - mPadding,
-                        layout.getLineBottom(layout.getLineForOffset(mSelectionInfo.mStart)) + getExtraY(),
+                        targetX,//(int) layout.getPrimaryHorizontal(mSelectionInfo.mStart) + getExtraX() - mWidth - mPadding,
+                        layout.getLineBottom(layout.getLineForOffset(mSelectionInfo.mStart)) + getExtraY() + mTextView.getPaddingTop(),
                         -1,
                         -1);
             } else {
+                targetX = (int) layout.getPrimaryHorizontal(mSelectionInfo.mEnd) - (int) layout.getPrimaryHorizontal(layout.getLineStart(layout.getLineForOffset(mSelectionInfo.mStart))) + getExtraX() - mPadding;
                 mPopupWindow.update(
-                        (int) layout.getPrimaryHorizontal(mSelectionInfo.mEnd) + getExtraX() - mPadding,
-                        layout.getLineBottom(layout.getLineForOffset(mSelectionInfo.mEnd)) + getExtraY(),
+                        targetX,//(int) layout.getPrimaryHorizontal(mSelectionInfo.mEnd) + getExtraX() - mPadding,
+                        layout.getLineBottom(layout.getLineForOffset(mSelectionInfo.mEnd)) + getExtraY() + mTextView.getPaddingTop(),
                         -1,
                         -1);
             }
@@ -548,7 +571,7 @@ public class SelectableTextHelper {
         public void show(int x, int y) {
             mTextView.getLocationOnScreen(mTempCoors);
             int offset = isLeft ? mWidth : 0;
-            mPopupWindow.showAtLocation(mTextView, Gravity.NO_GRAVITY, x + getExtraX() - offset - mPadding, y + getExtraY());
+            mPopupWindow.showAtLocation(mTextView, Gravity.NO_GRAVITY, x + getExtraX() - offset - mPadding, y + getExtraY() + mTextView.getPaddingTop());
         }
 
         public int getExtraX() {

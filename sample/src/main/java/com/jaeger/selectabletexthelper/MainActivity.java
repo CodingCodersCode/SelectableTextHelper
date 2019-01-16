@@ -25,6 +25,7 @@ public class MainActivity extends AppCompatActivity {
 
     private TextView tv_price_type;
     private TextView tv_price_type_1;
+    private TextView tv_price_type_2;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -43,6 +44,7 @@ public class MainActivity extends AppCompatActivity {
         mTvTest_6 = (TextView) findViewById(R.id.tv_test_6);
         tv_price_type = (TextView) findViewById(R.id.tv_price_type);
         tv_price_type_1 = (TextView) findViewById(R.id.tv_price_type_1);
+        tv_price_type_2 = (TextView) findViewById(R.id.tv_price_type_2);
 
         // 点击取消显示
         setClick(mTvTest_1);
@@ -54,9 +56,11 @@ public class MainActivity extends AppCompatActivity {
 
         setClick(tv_price_type);
         setClick(tv_price_type_1);
+        setClick(tv_price_type_2);
 
         SelectableTextHelper.setTextSelectable(tv_price_type);
         SelectableTextHelper.setTextSelectable(tv_price_type_1);
+        SelectableTextHelper.setTextSelectable(tv_price_type_2);
 
         // 长按文本立即弹出选择复制框
         SelectableTextHelper.setTextSelectable(mTvTest_1);

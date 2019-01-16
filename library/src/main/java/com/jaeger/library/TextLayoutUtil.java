@@ -2,6 +2,7 @@ package com.jaeger.library;
 
 import android.content.Context;
 import android.text.Layout;
+import android.view.Gravity;
 import android.widget.TextView;
 
 /**
@@ -19,7 +20,16 @@ public class TextLayoutUtil {
     public static int getPreciseOffset(TextView textView, int x, int y) {
         Layout layout = textView.getLayout();
         if (layout != null) {
+
+            /*int tvGravity = textView.getGravity();
+            if (tvGravity == Gravity.RIGHT || tvGravity == Gravity.END || tvGravity == (Gravity.TOP | Gravity.RIGHT) || tvGravity == (Gravity.TOP | Gravity.END) || tvGravity == (Gravity.BOTTOM | Gravity.RIGHT) || tvGravity == (Gravity.BOTTOM | Gravity.END)){
+                x = x + (int) layout.getPrimaryHorizontal(0);
+            }*/
+
             int topVisibleLine = layout.getLineForVertical(y);
+
+            x = x + (int) layout.getPrimaryHorizontal(layout.getLineStart(topVisibleLine));
+
             int offset = layout.getOffsetForHorizontal(topVisibleLine, x);
 
             int offsetX = (int) layout.getPrimaryHorizontal(offset);
@@ -39,6 +49,9 @@ public class TextLayoutUtil {
         if (layout == null) return -1;
 
         int line = layout.getLineForVertical(y);
+
+        int originalX = x;
+        x = originalX + (int) layout.getPrimaryHorizontal(layout.getLineStart(line));
 
         // The "HACK BLOCK"S in this function is required because of how Android Layout for
         // TextView works - if 'offset' equals to the last character of a line, then
@@ -77,6 +90,8 @@ public class TextLayoutUtil {
                 - y) < hysteresisThreshold))) {
             line = previousLine;
         }
+
+        x = originalX + (int) layout.getPrimaryHorizontal(layout.getLineStart(line));
 
         int offset = layout.getOffsetForHorizontal(line, x);
 
